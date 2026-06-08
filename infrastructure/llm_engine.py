@@ -1,6 +1,7 @@
 import os
 import json
-import httpx
+import litellm
+import asyncio
 from typing import Dict, Any, List
 from utils.logger import get_logger
 from dotenv import load_dotenv
@@ -10,11 +11,13 @@ logger = get_logger("LLMEngine")
 
 class LLMEngine:
     def __init__(self):
-        self.api_key = os.getenv("OPENAI_API_KEY", "")
+        # Allow user to specify ANY model, defaults to gpt-4o if not specified
+        self.model = os.getenv("LLM_MODEL", "gpt-4o")
+        self.api_key = os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+        self.api_base = os.getenv("LLM_API_BASE", None)
         self.resume_text = self._load_resume()
         
     def _load_resume(self) -> str:
-        # Load from job_desc.txt or a dedicated resume.txt file
         try:
             with open("job_desc.txt", "r", encoding="utf-8") as f:
                 return f.read()
@@ -23,8 +26,9 @@ class LLMEngine:
             return "I am a skilled professional applying for this role."
 
     async def generate_answer(self, question: str, options: List[str] = None) -> str:
-        if not self.api_key:
-            logger.error("No OPENAI_API_KEY found. Cannot auto-answer.")
+        # Local models via Ollama don't require an API key
+        if not self.api_key and not self.api_base and not self.model.startswith("ollama/"):
+            logger.error("No LLM_API_KEY or LLM_API_BASE found. Cannot auto-answer.")
             return options[0] if options else "Yes"
 
         system_prompt = (
@@ -39,27 +43,23 @@ class LLMEngine:
 
         user_prompt = f"Resume Context:\n{self.resume_text}\n\nQuestion:\n{question}"
 
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "model": "gpt-4o",
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            "temperature": 0.2,
-            "max_tokens": 50
-        }
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
 
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers, timeout=15.0)
-                response.raise_for_status()
-                data = response.json()
-                answer = data["choices"][0]["message"]["content"].strip()
-                return answer
+            # Using litellm.acompletion for async multi-provider support
+            response = await litellm.acompletion(
+                model=self.model,
+                messages=messages,
+                api_key=self.api_key if self.api_key else None,
+                api_base=self.api_base,
+                temperature=0.2,
+                max_tokens=50
+            )
+            answer = response.choices[0].message.content.strip()
+            return answer
         except Exception as e:
-            logger.error(f"LLM API Error: {e}")
+            logger.error(f"LLM API Error using model {self.model}: {e}")
             return options[0] if options else "Yes"

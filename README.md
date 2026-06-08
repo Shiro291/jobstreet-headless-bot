@@ -5,7 +5,7 @@ An autonomous, stateful CLI bot that automatically searches, qualifies, and appl
 Built as a "plug-and-play" solution, the bot runs locally, handles its own persistent state (to avoid double applications), and actively evades bot detection mechanisms.
 
 ## Key Features
-- **LLM Auto-Answer**: Uses OpenAI (`gpt-4o`) to dynamically answer new/unknown employer questions based on your resume.
+- **LLM Auto-Answer**: Supports **ANY AI Provider** (OpenAI, Anthropic, Local via Ollama, etc.) through `litellm`. Dynamically answers new/unknown employer questions based on your resume context.
 - **Idempotency**: Uses an SQLite database (`bot_state.db`) to track all successful/failed applications. It will never apply to the same job twice.
 - **Stealth Automation**: Fully bypasses anti-bot measures by utilizing Playwright along with advanced stealth patterns.
 - **Interactive CLI**: Powered by `questionary` for an easy, terminal-based user interface.
@@ -20,9 +20,15 @@ Built as a "plug-and-play" solution, the bot runs locally, handles its own persi
    ```
 
 2. **Environment Variables**
-   Rename `.env.example` to `.env` and add your OpenAI API key (used for auto-answering questions).
+   Rename `.env.example` to `.env`. Configure your LLM provider of choice.
    ```env
-   OPENAI_API_KEY=sk-your-openai-key
+   # OpenAI
+   LLM_MODEL=gpt-4o
+   LLM_API_KEY=sk-your-openai-key
+   
+   # Or Local (Ollama)
+   # LLM_MODEL=ollama/llama3
+   # LLM_API_BASE=http://localhost:11434
    ```
 
 3. **Provide Your Context**
@@ -41,11 +47,32 @@ Built as a "plug-and-play" solution, the bot runs locally, handles its own persi
    ```
    Follow the interactive prompts to define your search keyword, location, and limits!
 
-## Architecture & Skills
-This project was structured using the following design patterns:
-- **`playwright-skill`**: For robust DOM parsing and headless interaction.
-- **`workflow-automation`**: For the SQLite idempotency tracking layer (Zero-Fault Pipeline).
-- **`backend` & `python-pro`**: Clean separation of concerns (Core Models, Infrastructure, Application logic).
+## Architecture & Workflow
+
+```mermaid
+graph TD
+    A[User Setup: .env + job_desc.txt] --> B(bot.py: Initialize Scanner & Solver)
+    B --> C{Scan Jobstreet Search}
+    C --> D[Extract Job Links]
+    
+    D --> E{SQLite Idempotency Check}
+    E -- Already Applied --> C
+    E -- New Job --> F[Playwright + Scrapling DOM Parser]
+    
+    F --> G[Load Application Modal]
+    G --> H{Find Unknown Questions}
+    
+    H -- Exists in Bank --> I[Solve Question]
+    H -- Not in Bank --> J[LLM Engine via litellm]
+    
+    J --> |Provider: OpenAI/Local/etc| K[Read job_desc.txt]
+    K --> L[Generate Contextual Answer]
+    L --> I
+    
+    I --> M{Click Apply}
+    M -- Success --> N[Save to DB as APPLIED]
+    N --> C
+```
 
 ## Credits & Acknowledgements
 - **Scrapling**: Huge credit to [darvincisec/scrapling](https://github.com/darvincisec/scrapling) for the foundational stealth scraping architecture. This project builds upon those evasion techniques.

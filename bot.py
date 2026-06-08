@@ -30,11 +30,11 @@ async def run_bot(keyword: str, location: str = "", dry_run: bool = False, limit
     
     # LLM Auto-Answer Configuration
     llm_enabled = False
-    if os.getenv("OPENAI_API_KEY"):
+    if os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("LLM_API_BASE") or os.getenv("LLM_MODEL", "").startswith("ollama/"):
         llm_enabled = True
-        logger.info("LLM Auto-Answer mode ACTIVATED (OpenAI key found).")
+        logger.info(f"LLM Auto-Answer mode ACTIVATED (Provider config detected).")
     else:
-        logger.warning("OPENAI_API_KEY not found in .env. LLM Auto-Answer DISABLED.")
+        logger.warning("No LLM configuration found in .env. LLM Auto-Answer DISABLED.")
 
     if setup_login:
         logger.info("Setup login mode activated. Navigating to Jobstreet...")
