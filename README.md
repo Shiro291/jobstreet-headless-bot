@@ -1,41 +1,52 @@
-# Headless Jobstreet Automation Bot
+# Jobstreet Headless Bot
 
-An asynchronous, fault-tolerant Python/Playwright automation suite designed to navigate dynamic DOM structures, parse complex job application states, and execute headless submissions at scale. 
+An autonomous, stateful CLI bot that automatically searches, qualifies, and applies to jobs on Jobstreet using stealth browser automation and LLM-powered dynamic question answering.
 
-## Features
-- **Deterministic State Tracking:** Parses single-page application (SPA) state changes without relying on fragile hard-coded sleep timers.
-- **Async DOM Parsing:** Utilizes Scrapling and asyncio to rapidly extract required form fields and map them to localized data stores.
-- **LLM Qualification Engine:** Injects unknown application questions into a local/cloud LLM to determine the mathematically optimal multiple-choice response based on pre-defined resume embeddings.
-- **Session Persistence:** Maintains authenticated browser contexts to bypass repeated anti-bot challenges and CAPTCHA walls.
+Built as a "plug-and-play" solution, the bot runs locally, handles its own persistent state (to avoid double applications), and actively evades bot detection mechanisms.
 
-## Setup Instructions (Plug & Play)
+## Key Features
+- **LLM Auto-Answer**: Uses OpenAI (`gpt-4o`) to dynamically answer new/unknown employer questions based on your resume.
+- **Idempotency**: Uses an SQLite database (`bot_state.db`) to track all successful/failed applications. It will never apply to the same job twice.
+- **Stealth Automation**: Fully bypasses anti-bot measures by utilizing Playwright along with advanced stealth patterns.
+- **Interactive CLI**: Powered by `questionary` for an easy, terminal-based user interface.
 
-### 1. Requirements
-- Python 3.10+
-- Playwright (`pip install playwright` & `playwright install`)
-- A valid `database.db` SQLite schema (included in `schema/`)
+## Quick Setup (Plug and Play)
 
-### 2. Installation
-```bash
-git clone https://github.com/Shiro291/jobstreet-headless-bot.git
-cd jobstreet-headless-bot
-pip install -r requirements.txt
-```
+1. **Install Requirements**
+   Ensure you have Python 3.9+ installed.
+   ```bash
+   pip install -r requirements.txt
+   playwright install chromium
+   ```
 
-### 3. Configuration
-Copy the example environment file and insert your configuration:
-```bash
-cp .env.example .env
-```
-Ensure you have your Jobstreet session cookies or credentials defined. **Never commit your `.env` file.**
+2. **Environment Variables**
+   Rename `.env.example` to `.env` and add your OpenAI API key (used for auto-answering questions).
+   ```env
+   OPENAI_API_KEY=sk-your-openai-key
+   ```
 
-### 4. Execution
-To run the automated application solver:
-```bash
-python solver.py --headless --target "Python Backend Developer"
-```
+3. **Provide Your Context**
+   Create a file named `job_desc.txt` in the root directory and paste your resume/CV text inside it. The AI will use this file as its knowledge base when answering employer questions.
 
-## Architecture
-This project demonstrates advanced headless architecture. It does not rely on simple Selenium clicks. It intercepts XHR requests, parses underlying React component states, and uses AI to map semantic questions to deterministic answers. 
+4. **Initial Login Setup**
+   Run the setup mode to log into your Jobstreet account manually. The session cookies will be saved securely so you never have to log in again.
+   ```bash
+   python bot.py --setup-login
+   ```
+   *(A browser window will open. Log in, then press Enter in your terminal when done).*
 
-*Designed and maintained by Fathan Faqih Ali.*
+5. **Run the Bot**
+   ```bash
+   python bot.py
+   ```
+   Follow the interactive prompts to define your search keyword, location, and limits!
+
+## Architecture & Skills
+This project was structured using the following design patterns:
+- **`playwright-skill`**: For robust DOM parsing and headless interaction.
+- **`workflow-automation`**: For the SQLite idempotency tracking layer (Zero-Fault Pipeline).
+- **`backend` & `python-pro`**: Clean separation of concerns (Core Models, Infrastructure, Application logic).
+
+## Credits & Acknowledgements
+- **Scrapling**: Huge credit to [darvincisec/scrapling](https://github.com/darvincisec/scrapling) for the foundational stealth scraping architecture. This project builds upon those evasion techniques.
+- **Playwright**: For the browser automation engine.

@@ -4,12 +4,13 @@ from core.job import Job, ApplicationResult
 from infrastructure.browser import BrowserManager
 from infrastructure.dom_mapper import JobstreetDOMMapper
 from infrastructure.question_bank import QuestionBank
+from infrastructure.llm_engine import LLMEngine
 from utils.logger import get_logger
 
 logger = get_logger("Solver")
 
 class JobSolver:
-    def __init__(self, browser: BrowserManager, question_bank: QuestionBank, auto_mode: bool = True, strict_mode: bool = False, exclusions: list = None, dry_run: bool = False):
+    def __init__(self, browser: BrowserManager, question_bank: QuestionBank, auto_mode: bool = True, strict_mode: bool = False, exclusions: list = None, dry_run: bool = False, llm_enabled: bool = False):
         self.browser = browser
         self.question_bank = question_bank
         self.auto_mode = auto_mode
@@ -17,6 +18,8 @@ class JobSolver:
         self.exclusions = exclusions or []
         self.dry_run = dry_run
         self.mapper = JobstreetDOMMapper(browser.page)
+        self.llm_enabled = llm_enabled
+        self.llm_engine = LLMEngine() if llm_enabled else None
 
     async def apply(self, job: Job, force: bool = False) -> ApplicationResult:
         logger.info(f"Applying for job: {job.title} at {job.company}")
@@ -172,7 +175,16 @@ class JobSolver:
                             unanswered.append(q["label"])
                     except Exception as e:
                         if "QuestionBankMissError" in str(type(e)):
-                            if getattr(self, 'brute_force_mode', False):
+                            if getattr(self, 'llm_enabled', False) and self.llm_engine:
+                                logger.info(f"[LLM] Formulating answer for unknown question: '{q['label']}'")
+                                options = q.get('options', [])
+                                answer = await self.llm_engine.generate_answer(q["label"], options=options if options else None)
+                                
+                                logger.success(f"[LLM] Answered: '{answer}'")
+                                self.question_bank.add_answer(q["label"], answer, is_bruteforce=False)
+                                await self.mapper.solve_question(q, answer)
+                                
+                            elif getattr(self, 'brute_force_mode', False):
                                 import random
                                 options = q.get('options', [])
                                 if options:
